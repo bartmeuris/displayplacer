@@ -44,6 +44,21 @@ void print_str_val(const char *name, const char *json_name, const char *valfmt, 
     printf("\n");
 }
 
+void print_bool_val(const char *name, const char *json_name, bool val, bool addcomma) {
+    if (print_json) {
+        printf("\"%s\": ", json_name);
+    } else {
+        printf("%s: ", name);
+    }
+    printf("%s", val ? "true" : "false");
+    if (print_json) {
+        if (addcomma) {
+            printf(",");
+        }
+    }
+    printf("\n");
+}
+
 void print_int_val(const char *name, const char *json_name, const char *valfmt, int val, bool addcomma) {
     if (print_json) {
         printf("\"%s\": \"", json_name);

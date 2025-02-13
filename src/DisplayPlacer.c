@@ -326,7 +326,7 @@ void listScreens() {
             print_json_start('{', "origin"); // ORIGIN BLOCK
             print_int_val("", "x", "%i", (int) CGDisplayBounds(curScreen).origin.x, true);
             print_int_val("", "y", "%i", (int) CGDisplayBounds(curScreen).origin.y, true);
-            print_str_val("", "main_display", "%s", ((CGDisplayIsMain(curScreen)) ? "true" : "false"), false);
+            print_bool_val("", "main_display", CGDisplayIsMain(curScreen), false);
             print_json_end('}', true); // ORIGIN BLOCK
         }
         if (!print_json) {
@@ -336,9 +336,9 @@ void listScreens() {
             }
             printf("\n");
         } else {
-            print_str_val("", "builtin", "%s", (CGDisplayIsBuiltin(curScreen)) ? "true" : "false", true);
+            print_bool_val("", "builtin", CGDisplayIsBuiltin(curScreen), true);
         }
-        print_str_val("Enabled", "enabled", "%s", isScreenEnabled(curScreen) ? "true" : "false", true);
+        print_bool_val("Enabled", "enabled", isScreenEnabled(curScreen), true);
 
         int modeCount;
         modes_D4* modes;
@@ -362,8 +362,8 @@ void listScreens() {
                 print_int_val("", "y", "%i", (int) CGDisplayPixelsHigh(curScreen), true);
                 print_int_val("", "hz", "%i", mode.derived.freq, true);
                 print_int_val("", "color_depth", "%i", mode.derived.depth, true);
-                print_str_val("", "scaling", "%s", (mode.derived.density == 2.0) ? "true": "false", true);
-                print_str_val("", "current_mode", "%s", (j == curModeId) ? "true": "false", false);
+                print_bool_val("", "scaling", (mode.derived.density == 2.0), true);
+                print_bool_val("", "current_mode", (j == curModeId), false);
                 // print_json_end('}', true);
             } else {
                 printf("  mode %i: res:%dx%d", j, mode.derived.width, mode.derived.height);
