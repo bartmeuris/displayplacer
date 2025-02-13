@@ -12,6 +12,8 @@ Install via Homebrew with `brew install displayplacer` or visit the [releases](h
 
 Show current screen info and possible resolutions: `displayplacer list`
 
+Show current screen info and possible resolutions in json: `displayplacer list --json`
+
 Apply screen config (hz & color_depth are optional): `displayplacer "id:<screenId> res:<width>x<height> hz:<num> color_depth:<num> scaling:<on/off> origin:(<x>,<y>) degree:<0/90/180/270>"`
 
 Apply screen config using mode: `displayplacer "id:<screenId> mode:<modeNum> origin:(<x>,<y>) degree:<0/90/180/270>"`
@@ -23,6 +25,7 @@ Silence errors per-screen using quiet: `displayplacer "id:<screenId> mode:<modeN
 Disable a screen: `displayplacer "id:<screenId> enabled:false"`
 
 #### Instructions:
+
 1. Manually set rotations 1st*, resolutions 2nd, and arrangement 3rd. For extra resolutions and rotations read 'Notes' below.
     - Open System Preferences -> Displays
     - Choose desired screen rotations (use displayplacer for rotating internal MacBook screen).
@@ -32,14 +35,27 @@ Disable a screen: `displayplacer "id:<screenId> enabled:false"`
 2. Use `displayplacer list` to print your current layout's args, so you can create profiles for scripting/hotkeys with [Automator](https://github.com/jakehilborn/displayplacer/issues/13), BetterTouchTool, etc.
 
 #### ScreenIds Switching:
+
 Unfortunately, macOS sometimes changes the persistent screenIds when there are race conditions from external screens waking up in non-determinisic order. If none of the screenId options below work for your setup, please search around in the GitHub Issues for conversation regarding this. Many people have written shell scripts to work around this issue. Recommended discussions are [one](https://github.com/jakehilborn/displayplacer/issues/80), [two](https://github.com/jakehilborn/displayplacer/issues/30), [three](https://github.com/jakehilborn/displayplacer/issues/89), [four](https://github.com/jakehilborn/displayplacer/issues/77), [five](https://github.com/jakehilborn/displayplacer/issues/100), [six](https://github.com/jakehilborn/displayplacer/pull/96).
 
 You can mix and match screenId types across your setup.
+
 - Persistent screenIds usually stay the same. They are recommended for most use cases.
 - Contextual screenIds change when switching GPUs or when cables switch ports. If you notice persistent screenIds switching around, try using the contextual screenIds.
 - Serial screenIds are tied to your display hardware. If the serial screenIds are unique for all of your monitors, use these.
 
+#### JSON output
+
+The `list` subcommand accepts the `--json` parameter to output a valid json structure, which in general is the same as the plain `list` output.
+
+However this structure is completely unformatted and not very human-frienly, if you want to have a more readable output, pipe it into the `jq` tool:
+
+```shell
+displayplacer list --json | jq
+```
+
 #### Notes:
+
 - *`displayplacer list` and system prefs only show resolutions for the screen's current rotation.
 - Use an extra resolution shown in `displayplacer list` by executing `displayplacer "id:<screenId> mode:<modeNum>"`. Some of the resolutions listed do not work. If you select one, displayplacer will default to another working resolution.
 - Rotate your internal MacBook screen by executing `displayplacer "id:<screenId> degree:<0/90/180/270>"`
@@ -50,7 +66,9 @@ You can mix and match screenId types across your setup.
 - screenId is optional if there is only one screen. Rule of thumb is that displayplacer is expecting the entire profile config per screen though, so this may be buggy.
 
 #### Backward Compatability:
+
 `displayplacer list` output changed slightly in v1.4.0. If this broke your scripts, use `displayplacer list --v1.3.0`.
 
 #### Feedback:
+
 Please create a GitHub Issue for any feedback, feature requests, bugs, Homebrew issues, etc. Happy to accept pull requests too!

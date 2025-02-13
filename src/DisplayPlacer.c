@@ -4,6 +4,7 @@
 #include <math.h>
 #include <stdio.h>
 #include "Header.h"
+#include "printjson.h"
 
 int main(int argc, char* argv[]) {
     if (argc == 1 || strcmp(argv[1], "--help") == 0) {
@@ -23,6 +24,9 @@ int main(int argc, char* argv[]) {
     }
 
     if (strcmp(argv[1], "list") == 0) {
+        if ((argc == 3) && (strcmp(argv[2], "--json") == 0)) {
+            print_json = true;
+        }
         listScreens();
         printCurrentProfile();
         return 0;
@@ -198,6 +202,8 @@ void printHelp() {
             "Usage:\n"
             "    Show current screen info and possible resolutions: displayplacer list\n"
             "\n"
+            "    Show current screen info and possible resolutions in json: displayplacer list --json\n"
+            "\n"
             "    Apply screen config (hz & color_depth are optional): displayplacer \"id:<screenId> res:<width>x<height> hz:<num> color_depth:<num> scaling:<on/off> origin:(<x>,<y>) degree:<0/90/180/270>\"\n"
             "\n"
             "    Apply screen config using mode: displayplacer \"id:<screenId> mode:<modeNum> origin:(<x>,<y>) degree:<0/90/180/270>\"\n"
@@ -254,14 +260,18 @@ void printVersion() {
     );
 }
 
+
 void listScreens() {
     CGDisplayCount screenCount;
     CGGetOnlineDisplayList(INT_MAX, NULL, &screenCount); //get number of online screens and store in screenCount
 
     CGDirectDisplayID screenList[screenCount];
     CGGetOnlineDisplayList(INT_MAX, screenList, &screenCount);
-
+    print_json_start('{', NULL); // JSON OPEN
+    print_json_start('[', "screens"); // SCREENS LIST
     for (int i = 0; i < screenCount; i++) {
+        print_json_start('{', NULL); // SCREEN BLOCK
+
         CGDirectDisplayID curScreen = screenList[i];
 
         int curModeId;
@@ -271,79 +281,125 @@ void listScreens() {
 
         char curScreenUUID[UUID_SIZE];
         CFStringGetCString(CFUUIDCreateString(kCFAllocatorDefault, CGDisplayCreateUUIDFromDisplayID(curScreen)), curScreenUUID, sizeof(curScreenUUID), kCFStringEncodingUTF8);
-        printf("Persistent screen id: %s\n", curScreenUUID);
-        printf("Contextual screen id: %i\n", curScreen);
+        
+        print_str_val("Persistent screen id", "persistent_screen_id", "%s", curScreenUUID, true);
+        print_int_val("Contextual screen id", "contextual_screen_id", "%i", curScreen, true);
         UInt32 serialID = CGDisplaySerialNumber(screenList[i]);
-        printf("Serial screen id: s%u\n", serialID);
+        print_int_val("Serial screen id", "serial_screen_id", "s%u", serialID, true);
 
         if (CGDisplayIsBuiltin(curScreen)) {
-            printf("Type: MacBook built in screen\n");
+            print_str_val("Type", "type", "%s", "MacBook built in screen", true);
         } else {
             CGSize size = CGDisplayScreenSize(curScreen);
             int diagonal = round(sqrt((size.width * size.width) + (size.height * size.height)) / 25.4); //25.4mm in an inch
-            printf("Type: %i inch external screen\n", diagonal);
+            char buf[128];
+            snprintf(buf, sizeof(buf), "%i inch external screen", diagonal);
+            // print_int_val("Type", "type", "\"%i inch external screen\"", diagonal, true);
+            print_str_val("Type", "type", "%s", buf, true);
         }
-
-        printf("Resolution: %ix%i\n", (int) CGDisplayPixelsWide(curScreen), (int) CGDisplayPixelsHigh(curScreen));
+        if (!print_json) {
+            printf("Resolution: %ix%i\n", (int) CGDisplayPixelsWide(curScreen), (int) CGDisplayPixelsHigh(curScreen));
+        } else {
+            print_json_start('{', "resolution"); // RESOLUTION BLOCK
+            print_int_val("", "x", "%i", (int) CGDisplayPixelsWide(curScreen), true);
+            print_int_val("", "y", "%i", (int) CGDisplayPixelsHigh(curScreen), false);
+            print_json_end('}', true); // RESOLUTION BLOCK
+        }
 
         if (curMode.derived.freq) {
-            printf("Hertz: %i\n", curMode.derived.freq);
+            print_int_val("Hertz", "hertz", "%i", curMode.derived.freq, true);
         } else {
-            printf("Hertz: N/A\n");
+            print_str_val("Hertz", "hertz", "%s", "N/A", true);
         }
-
-        printf("Color Depth: %i\n", curMode.derived.depth);
+        print_int_val("Color Depth", "color_depth", "%i", curMode.derived.depth, true);
 
         char* scaling = (curMode.derived.density == 2.0) ? "on" : "off";
-        printf("Scaling: %s\n", scaling);
+        print_str_val("Scaling", "scaling", "%s", scaling, true);
 
-        printf("Origin: (%i,%i)", (int) CGDisplayBounds(curScreen).origin.x, (int) CGDisplayBounds(curScreen).origin.y);
-        if (CGDisplayIsMain(curScreen)) {
-            printf(" - main display");
+        if (!print_json) {
+            printf("Origin: (%i,%i)", (int) CGDisplayBounds(curScreen).origin.x, (int) CGDisplayBounds(curScreen).origin.y);
+            if (CGDisplayIsMain(curScreen)) {
+                printf(" - main display");
+            }
+            printf("\n");
+        } else {
+            print_json_start('{', "origin"); // ORIGIN BLOCK
+            print_int_val("", "x", "%i", (int) CGDisplayBounds(curScreen).origin.x, true);
+            print_int_val("", "y", "%i", (int) CGDisplayBounds(curScreen).origin.y, true);
+            print_str_val("", "main_display", "%s", ((CGDisplayIsMain(curScreen)) ? "true" : "false"), false);
+            print_json_end('}', true); // ORIGIN BLOCK
         }
-        printf("\n");
-
-        printf("Rotation: %i", (int) CGDisplayRotation(curScreen));
-        if (CGDisplayIsBuiltin(curScreen)) {
-            printf(" - rotate internal screen example (may crash computer, but will be rotated after rebooting): `displayplacer \"id:%s degree:90\"`", curScreenUUID);
+        if (!print_json) {
+            printf("Rotation: %i", (int) CGDisplayRotation(curScreen));
+            if (CGDisplayIsBuiltin(curScreen)) {
+                printf(" - rotate internal screen example (may crash computer, but will be rotated after rebooting): `displayplacer \"id:%s degree:90\"`", curScreenUUID);
+            }
+            printf("\n");
+        } else {
+            print_str_val("", "builtin", "%s", (CGDisplayIsBuiltin(curScreen)) ? "true" : "false", true);
         }
-        printf("\n");
-
-        char* enabled = isScreenEnabled(curScreen) ? "true" : "false";
-        printf("Enabled: %s\n", enabled);
+        print_str_val("Enabled", "enabled", "%s", isScreenEnabled(curScreen) ? "true" : "false", true);
 
         int modeCount;
         modes_D4* modes;
         CopyAllDisplayModes(curScreen, &modes, &modeCount);
 
-        printf("Resolutions for rotation %i:\n", (int) CGDisplayRotation(curScreen));
+        print_json_start('{', "rotation"); // ROTATION BLOCK
+        if (!print_json) {
+            printf("Resolutions for rotation %i:\n", (int) CGDisplayRotation(curScreen));
+        } else {
+            print_int_val("Resolutions for rotation", "degrees", "%i", (int) CGDisplayRotation(curScreen), true);
+        }
+        print_json_start('[', "modes"); // MODES LIST
         for (int j = 0; j < modeCount; j++) {
+            print_json_start('{', NULL);
             modes_D4 mode = modes[j];
 
-            printf("  mode %i: res:%dx%d", j, mode.derived.width, mode.derived.height);
+            if (print_json) {
+                // print_json_start('{', "mode");
+                print_int_val("", "mode_id", "%i", j, true);
+                print_int_val("", "x", "%i", (int) CGDisplayPixelsWide(curScreen), true);
+                print_int_val("", "y", "%i", (int) CGDisplayPixelsHigh(curScreen), true);
+                print_int_val("", "hz", "%i", mode.derived.freq, true);
+                print_int_val("", "color_depth", "%i", mode.derived.depth, true);
+                print_str_val("", "scaling", "%s", (mode.derived.density == 2.0) ? "true": "false", true);
+                print_str_val("", "current_mode", "%s", (j == curModeId) ? "true": "false", false);
+                // print_json_end('}', true);
+            } else {
+                printf("  mode %i: res:%dx%d", j, mode.derived.width, mode.derived.height);
 
-            if (mode.derived.freq) {
-                printf(" hz:%i", mode.derived.freq);
+                if (mode.derived.freq) {
+                    printf(" hz:%i", mode.derived.freq);
+                }
+
+                printf(" color_depth:%i", mode.derived.depth);
+
+                if (mode.derived.density == 2.0) {
+                    printf(" scaling:on");
+                }
+
+                if (j == curModeId) {
+                    printf(" <-- current mode");
+                }
+                printf("\n");
             }
-
-            printf(" color_depth:%i", mode.derived.depth);
-
-            if (mode.derived.density == 2.0) {
-                printf(" scaling:on");
-            }
-
-            if (j == curModeId) {
-                printf(" <-- current mode");
-            }
-
-            printf("\n");
+            print_json_end('}', (j != (modeCount - 1)));
         }
-        printf("\n");
         free(modes);
+        print_json_end(']', false); // MODES LIST
+        print_json_end('}', false); // ROTATION BLOCK
+        print_json_end('}', (i != (screenCount - 1))); // SCREEN BLOCK
+        print_plain_nl();
     }
+    // print_json_end('}', false);
+    print_json_end(']', false);// SCREENS LIST
+    print_json_end('}', false); // JSON OPEN
 }
 
 void printCurrentProfile() {
+    if (print_json) {
+        return;
+    }
     CGDisplayCount screenCount;
     CGGetOnlineDisplayList(INT_MAX, NULL, &screenCount); //get number of online screens and store in screenCount
 
